@@ -70,14 +70,3 @@ Thumbs.db
 *.swp
 *.swo
 *.bak
-
-# ---- Other ----
-assets/*.png
-assets/*.jpg
-assets/*.mov
-assets/*.mp4
-assets/*.gif
-
-# Keep README assets (if needed, comment out below)
-# !assets/banner.png
-# !assets/demo.gif
