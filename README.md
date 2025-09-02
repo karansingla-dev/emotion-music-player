@@ -25,11 +25,8 @@ Built with **FastAPI + Deep Learning (FER/DeepFace) + Next.js + Tailwind + Spoti
 
 ## 🖼️ Demo
 
-👉 Add screenshots or GIFs of your app here  
-
-```md
-![Demo Video](assets/demo.gif)
-```
+![screenshot](assets/demo1.png)
+![screenshot](assets/demo2.png)
 
 ---
 
