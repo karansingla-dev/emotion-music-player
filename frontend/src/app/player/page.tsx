@@ -1,16 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import AudioPlayer from "../components/AudioPlayer";
+
+// Define proper type for Song
+type Song = {
+  name: string;
+  artist: string;
+  url: string;
+  preview_url?: string;
+};
 
 export default function Player() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [emotion, setEmotion] = useState<string | null>(null);
-  const [songs, setSongs] = useState<any[]>([]);
+  const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastEmotion, setLastEmotion] = useState<string | null>(null);
-  const [isDetecting, setIsDetecting] = useState(false); 
 
   // Preferences
   const [language, setLanguage] = useState("english");
@@ -28,6 +35,51 @@ export default function Player() {
     genreRef.current = genre;
   }, [genre]);
 
+  // Detect function wrapped in useCallback
+  const captureAndDetect = useCallback(async () => {
+    if (!videoRef.current) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    }
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((b) => resolve(b), "image/jpeg")
+    );
+
+    if (!blob) return;
+
+    const formData = new FormData();
+    formData.append("file", blob, "frame.jpg");
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/detect-emotion/`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      setEmotion(data.emotion);
+
+      if (data.emotion !== lastEmotion) {
+        setLastEmotion(data.emotion);
+
+        const rec = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/recommend/${data.emotion}?language=${languageRef.current}&genre=${genreRef.current}`
+        );
+        const recData = await rec.json();
+        setSongs(recData.tracks);
+      }
+
+      if (loading) setLoading(false);
+    } catch (err) {
+      console.error("Error detecting emotion:", err);
+    }
+  }, [lastEmotion, loading]);
+
   // Start camera once
   useEffect(() => {
     const startCamera = async () => {
@@ -37,7 +89,6 @@ export default function Player() {
           videoRef.current.srcObject = stream;
         }
 
-        // interval detection
         const interval = setInterval(() => {
           captureAndDetect();
         }, 5000);
@@ -49,61 +100,7 @@ export default function Player() {
       }
     };
     startCamera();
-  }, []);
-
-
-// Detect function
-const captureAndDetect = async () => {
-  if (!videoRef.current) return;
-
-  const canvas = document.createElement("canvas");
-  canvas.width = videoRef.current.videoWidth;
-  canvas.height = videoRef.current.videoHeight;
-  const ctx = canvas.getContext("2d");
-  if (ctx) {
-    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-  }
-
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob((b) => resolve(b), "image/jpeg")
-  );
-
-  if (!blob) return;
-
-  const formData = new FormData();
-  formData.append("file", blob, "frame.jpg");
-
-  // 👉 do NOT trigger main loading here
-  setIsDetecting(true);
-
-  try {
-    const res = await fetch("http://localhost:8000/detect-emotion/", {
-      method: "POST",
-      body: formData,
-    });
-    const data = await res.json();
-    setEmotion(data.emotion);
-
-    if (data.emotion !== lastEmotion) {
-      setLastEmotion(data.emotion);
-
-      const rec = await fetch(
-        `http://localhost:8000/recommend/${data.emotion}?language=${languageRef.current}&genre=${genreRef.current}`
-      );
-      const recData = await rec.json();
-      console.log(recData.tracks)
-      setSongs(recData.tracks);
-    }
-
-    // First time detection done → hide global loading
-    if (loading) setLoading(false);
-  } catch (err) {
-    console.error("Error detecting emotion:", err);
-  } finally {
-    setIsDetecting(false);
-  }
-};
-
+  }, [captureAndDetect]);
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 flex flex-col items-center justify-start p-6">
@@ -167,14 +164,14 @@ const captureAndDetect = async () => {
         />
         {/* Startup Loading Overlay (only once) */}
         {loading && (
-  <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-2xl">
-    <div className="flex space-x-2">
-      <span className="w-3 h-3 bg-white rounded-full animate-bounce"></span>
-      <span className="w-3 h-3 bg-white rounded-full animate-bounce delay-150"></span>
-      <span className="w-3 h-3 bg-white rounded-full animate-bounce delay-300"></span>
-    </div>
-  </div>
-)}
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-2xl">
+            <div className="flex space-x-2">
+              <span className="w-3 h-3 bg-white rounded-full animate-bounce"></span>
+              <span className="w-3 h-3 bg-white rounded-full animate-bounce delay-150"></span>
+              <span className="w-3 h-3 bg-white rounded-full animate-bounce delay-300"></span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Emotion */}
@@ -185,41 +182,40 @@ const captureAndDetect = async () => {
       )}
 
       {/* Songs */}
-    {songs.length > 0 && (
-  <motion.div className="w-full max-w-md mt-8 space-y-4">
-    <h2 className="text-2xl font-bold text-white mb-4">Recommended Songs</h2>
-    {songs.map((song, idx) => (
-      <motion.div
-        key={idx}
-        className="p-4 bg-white/20 backdrop-blur-md rounded-xl hover:bg-white/30 transition"
-      >
-        {song.preview_url ? (
-          <AudioPlayer
-            src={song.preview_url}
-            title={song.name}
-            artist={song.artist}
-          />
-        ) : (
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-white font-semibold">{song.name}</p>
-              <p className="text-sm text-gray-200">{song.artist}</p>
-            </div>
-            <a
-              href={song.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-yellow-400 text-black px-3 py-1 rounded-lg font-bold hover:bg-yellow-300"
+      {songs.length > 0 && (
+        <motion.div className="w-full max-w-md mt-8 space-y-4">
+          <h2 className="text-2xl font-bold text-white mb-4">Recommended Songs</h2>
+          {songs.map((song, idx) => (
+            <motion.div
+              key={idx}
+              className="p-4 bg-white/20 backdrop-blur-md rounded-xl hover:bg-white/30 transition"
             >
-              ▶️ Play on Spotify
-            </a>
-          </div>
-        )}
-      </motion.div>
-    ))}
-  </motion.div>
-)}
-
+              {song.preview_url ? (
+                <AudioPlayer
+                  src={song.preview_url}
+                  title={song.name}
+                  artist={song.artist}
+                />
+              ) : (
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-white font-semibold">{song.name}</p>
+                    <p className="text-sm text-gray-200">{song.artist}</p>
+                  </div>
+                  <a
+                    href={song.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-yellow-400 text-black px-3 py-1 rounded-lg font-bold hover:bg-yellow-300"
+                  >
+                    ▶️ Play on Spotify
+                  </a>
+                </div>
+              )}
+            </motion.div>
+          ))}
+        </motion.div>
+      )}
     </div>
   );
 }
