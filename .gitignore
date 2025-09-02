@@ -1,0 +1,83 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.so
+*.egg
+*.egg-info/
+*.manifest
+*.spec
+.eggs/
+dist/
+build/
+venv/
+.env
+.env.*
+*.sqlite3
+
+# Jupyter / IPython
+.ipynb_checkpoints
+.python-version
+
+# Logs
+*.log
+*.pot
+*.pycoverage
+.coverage
+coverage.xml
+htmlcov/
+
+# ---- FastAPI / Backend ----
+backend/.env
+backend/__pycache__/
+backend/venv/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+
+# ---- Node.js / Frontend ----
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.next/
+out/
+.cache/
+dist/
+.DS_Store
+
+# Env files
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# ---- Docker ----
+*.pid
+*.seed
+*.pid.lock
+docker-compose.override.yml
+.docker/
+
+# ---- OS / Editor ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*.bak
+
+# ---- Other ----
+assets/*.png
+assets/*.jpg
+assets/*.mov
+assets/*.mp4
+assets/*.gif
+
+# Keep README assets (if needed, comment out below)
+# !assets/banner.png
+# !assets/demo.gif
